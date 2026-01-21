@@ -31,30 +31,82 @@
 
 ## Building
 1. Clone this repository including all submodules
-2. Download the Jetson Linux driver package and cross compiler from: [Jetson Linux Downloads](https://developer.nvidia.com/embedded/jetson-linux)
-3. Extract the driver package: 
-    ```shell
-        tar -xf jetson_linux_r36*.tbz2
-    ```
-4. Extract the kernel headers from the driver package:
-    ```shell
-        cd Linux_for_Tegra/kernel/
-        tar -xf kernel_headers.tbz2
-    ```
-5. Extract the cross compiler
-6. Build the modules:
-    ```shell
-        export ARCH=arm64
-        export CROSS_COMPILE=<path to cross compiler>/bin/aarch64-buildroot-linux-gnu-
-        export KERNEL_SRC=Linux_for_Tegra/kernel/linux-headers-*-linux_x86_64/3rdparty/canonical/linux-jammy/kernel-source/
-        make all 
-    ```
-7. Install the driver modules
-    ```shell
-        export INSTALL_MOD_PATH=<path to install directory>
-        make install
-    ```
+## Build Everything (One Command)
+```bash
+./build.sh
+```
+This automatically:
+- Pulls the git submodules
+- Downloads L4T r36.4.3 if needed
+- Extracts kernel headers
+- Builds all modules
 
+### Install
+
+```bash
+./install.sh
+```
+
+### Or Use Makefile Directly
+
+```bash
+make setup    # First time only - downloads and prepares everything
+make all      # Build modules
+make install  # Install modules
+make help     # See all available targets
+```
+
+## Post-Installation Configuration
+
+```bash
+sudo depmod -a
+sudo mkdir -p /boot/dtb/overlays
+sudo cp /usr/lib/boot/*.dtbo /boot/dtb/overlays/
+```
+Then configure device tree and reboot:
+
+```bash
+sudo /opt/nvidia/jetson-io/jetson-io.py
+```
+
+
+After reboot, verify camera:
+
+```bash
+v4l2-ctl --list-devices
+dmesg | grep -i avt
+```
+
+
+## Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make help` | Show all available targets |
+| `make setup` | Download and extract L4T, prepare headers |
+| `make all` | Build all modules (default) |
+| `make install` | Install all modules |
+| `make clean` | Clean build artifacts |
+| `make distclean` | Remove downloaded L4T files |
+
+## Troubleshooting
+
+### "Exec format error" when building
+
+If you see `scripts/basic/fixdep: Exec format error`:
+
+```bash
+make fix-kernel-tools
+```
+This rebuilds kernel tools for ARM64.
+
+### Clean rebuild
+
+```bash
+make clean      # Clean build artifacts
+make distclean  # Remove everything including L4T
+make setup      # Start fresh
+```
 ## Known limitations
 
 - When using external triggers the NVIDIA v4l2 control  ```override_capture_timeout_ms``` has to be set a suitable timeout value or -1 for a infinite timeout. Otherwise incomplete buffers with the error flag set might be returned due to a timeout while waiting for the image. 
