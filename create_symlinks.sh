@@ -1,0 +1,1 @@
+sudo ln -sf /boot/dtb/overlays/tegra234-p3767-camera-p3768-alvium-dual-19623-1x2-1x4.dtbo /boot/tegra234-p3767-camera-p3768-alvium-dual-19623-1x2-1x4.dtbo
