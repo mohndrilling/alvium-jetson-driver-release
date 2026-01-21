@@ -1,0 +1,8 @@
+Linux_for_Tegra/*
+
+**/*.tbz2
+**/drivers
+
+# Build files
+
+out/*
