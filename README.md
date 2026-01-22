@@ -63,8 +63,8 @@ sudo depmod -a
 sudo mkdir -p /boot/dtb/overlays
 sudo cp /usr/lib/boot/*.dtbo /boot/dtb/overlays/
 ```
-Then configure device tree and reboot:
-
+Then configure device tree and reboot: \
+_**Note**: Add the correct symbolic links if your camera sensor doesen't appear in the list of available modules. See [create_symlinks.sh](https://github.com/mohndrilling/alvium-jetson-driver-release/blob/l4t-36.4.3/main/create_symlinks.sh)._
 ```bash
 sudo /opt/nvidia/jetson-io/jetson-io.py
 ```
