@@ -34,6 +34,7 @@ endif
 .PHONY: download-l4t extract-l4t setup prepare-kernel-headers fix-kernel-tools
 .PHONY: nvidia-oot-conftest nvidia-hwpm-modules nvidia-oot-modules nvidia-nvgpu-modules
 .PHONY: alvium-driver-modules nvidia-modules-install alvium-driver-modules-install
+.PHONY: v4l2viewer-deps v4l2viewer-build v4l2viewer-info
 
 # Default target
 all: check-setup nvidia-nvgpu-modules nvidia-oot-modules alvium-driver-modules
@@ -53,6 +54,11 @@ help:
 	@echo "  make download-l4t   - Download L4T packages"
 	@echo "  make extract-l4t    - Extract L4T packages"
 	@echo "  make fix-kernel-tools - Fix kernel tools for ARM64"
+	@echo ""
+	@echo "V4L2Viewer targets:"
+	@echo "  make v4l2viewer-deps  - Install Qt5 dependencies for V4L2Viewer"
+	@echo "  make v4l2viewer-build - Clone and build V4L2Viewer from source"
+	@echo "  make v4l2viewer-info  - Show V4L2Viewer usage info (pre-built binary available)"
 	@echo ""
 	@echo "Configuration:"
 	@echo "  L4T Version: $(L4T_VERSION)"
@@ -244,6 +250,52 @@ install: nvidia-modules-install alvium-driver-modules-install
 	@echo "  1. Configure device tree using: sudo /opt/nvidia/jetson-io/jetson-io.py"
 	@echo "  2. Reboot the system"
 	@echo "  3. Verify camera detection: v4l2-ctl --list-devices"
+
+# V4L2Viewer - Allied Vision camera viewer application
+# Pre-built binary is available at: $(MAKEFILE_DIR)/V4L2Viewer
+# For remote access, use: ssh -X user@device (or ssh -Y for trusted forwarding)
+
+V4L2VIEWER_DIR := ./V4L2Viewer-source
+V4L2VIEWER_REPO := https://github.com/alliedvision/V4L2Viewer.git
+
+# Install Qt5 dependencies for V4L2Viewer
+v4l2viewer-deps:
+	@echo "Installing Qt5 dependencies for V4L2Viewer..."
+	sudo apt-get update
+	sudo apt-get install -y qtbase5-dev qtmultimedia5-dev libqt5multimedia5-plugins \
+		qtdeclarative5-dev libqwt-qt5-dev cmake build-essential git
+	@echo ""
+	@echo "Dependencies installed successfully."
+
+# Clone and build V4L2Viewer from source
+v4l2viewer-build: v4l2viewer-deps
+	@echo "Cloning and building V4L2Viewer..."
+	@if [ ! -d "$(V4L2VIEWER_DIR)" ]; then \
+		cd $(HOME)/Downloads && git clone $(V4L2VIEWER_REPO); \
+	fi
+	cd $(V4L2VIEWER_DIR) && git checkout dev
+	mkdir -p $(V4L2VIEWER_DIR)/build
+	cd $(V4L2VIEWER_DIR)/build && cmake .. && make -j$$(nproc)
+	@echo ""
+	@echo "V4L2Viewer built successfully!"
+	@echo "Binary location: $(V4L2VIEWER_DIR)/build/V4L2Viewer"
+
+# Show V4L2Viewer usage information
+v4l2viewer-info:
+	@echo "V4L2Viewer - Allied Vision Camera Viewer"
+	@echo ""
+	@echo "Pre-built binary available at:"
+	@echo "  $(MAKEFILE_DIR)/V4L2Viewer"
+	@echo ""
+	@echo "To run the pre-built binary:"
+	@echo "  ./V4L2Viewer"
+	@echo ""
+	@echo "To build from source:"
+	@echo "  make v4l2viewer-build"
+	@echo ""
+	@echo "For remote access via SSH with X11 forwarding:"
+	@echo "  ssh -X user@device    # standard X11 forwarding"
+	@echo "  ssh -Y user@device    # trusted X11 forwarding (less secure)"
 
 # Clean build artifacts
 clean:
