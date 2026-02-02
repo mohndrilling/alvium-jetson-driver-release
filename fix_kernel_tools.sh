@@ -1,33 +1,57 @@
 #!/bin/bash
 # Fix kernel header tools for native ARM64 compilation
-# Consolidated script combining effective approaches from v1, v2, and v3
+# Builds only the essential tools needed for module compilation (fixdep, modpost)
+# Note: sorttable is skipped as it requires headers not included in kernel headers package
 
 KERNEL_SRC=$PWD/Linux_for_Tegra/kernel/linux-headers-5.15.148-tegra-linux_x86_64/3rdparty/canonical/linux-jammy/kernel-source/
 
 echo "Rebuilding kernel tools for ARM64..."
 echo ""
 
-# Step 1: Comprehensive build of all scripts 
-echo "[1/3] Building all kernel scripts..."
-make -C "${KERNEL_SRC}" HOSTCC=gcc HOSTLD=ld scripts
-
-# Step 2: Targeted rebuild of critical tools
-echo ""
-echo "[2/3] Rebuilding critical tools individually..."
 cd "${KERNEL_SRC}"
 
-echo "  - Building scripts/basic..."
-make HOSTCC=gcc HOSTLD=ld scripts/basic
+# Step 1: Build fixdep (required for dependency tracking)
+echo "[1/3] Building scripts/basic/fixdep..."
+rm -f scripts/basic/fixdep
+gcc -Wp,-MD,scripts/basic/.fixdep.d -Wall -Wmissing-prototypes -Wstrict-prototypes \
+    -O2 -fomit-frame-pointer -std=gnu89 -o scripts/basic/fixdep scripts/basic/fixdep.c
 
-echo "  - Building scripts/mod..."
-make HOSTCC=gcc HOSTLD=ld scripts/mod
+if [ $? -eq 0 ]; then
+    echo "  ✓ fixdep compiled successfully"
+else
+    echo "  ✗ fixdep compilation failed"
+    exit 1
+fi
 
-echo "  - Building additional tools..."
-make HOSTCC=gcc HOSTLD=ld scripts/genksyms/genksyms 2>/dev/null || true
-make HOSTCC=gcc HOSTLD=ld scripts/kallsyms 2>/dev/null || true
-make HOSTCC=gcc HOSTLD=ld scripts/recordmcount 2>/dev/null || true
+# Step 2: Build modpost (required for module symbol processing)
+echo ""
+echo "[2/3] Building scripts/mod/modpost..."
+rm -f scripts/mod/modpost scripts/mod/mk_elfconfig
 
-# Step 3: Verification 
+# First build mk_elfconfig
+gcc -Wp,-MD,scripts/mod/.mk_elfconfig.d -Wall -Wmissing-prototypes -Wstrict-prototypes \
+    -O2 -fomit-frame-pointer -std=gnu89 -o scripts/mod/mk_elfconfig scripts/mod/mk_elfconfig.c
+
+# Generate elfconfig.h if needed
+if [ ! -f scripts/mod/elfconfig.h ] || [ scripts/mod/mk_elfconfig -nt scripts/mod/elfconfig.h ]; then
+    ./scripts/mod/mk_elfconfig > scripts/mod/elfconfig.h 2>/dev/null || true
+fi
+
+# Build modpost
+gcc -Wp,-MD,scripts/mod/.modpost.d -Wall -Wmissing-prototypes -Wstrict-prototypes \
+    -O2 -fomit-frame-pointer -std=gnu89 \
+    -I scripts/mod \
+    -o scripts/mod/modpost \
+    scripts/mod/modpost.c scripts/mod/file2alias.c scripts/mod/sumversion.c
+
+if [ $? -eq 0 ]; then
+    echo "  ✓ modpost compiled successfully"
+else
+    echo "  ✗ modpost compilation failed"
+    exit 1
+fi
+
+# Step 3: Verification
 echo ""
 echo "[3/3] Verification:"
 if [ -f scripts/basic/fixdep ]; then
@@ -43,4 +67,4 @@ else
 fi
 
 echo ""
-echo "Done! Kernel tools have been rebuilt for ARM64."
+echo "Done! Essential kernel tools have been rebuilt for ARM64."
